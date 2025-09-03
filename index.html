@@ -1,0 +1,165 @@
+<!doctype html>
+
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Manja GIF – Simple Viewer</title>
+  <style>
+    :root{
+      --bg:#0b0b10; --card:#12121a; --muted:#a1a1aa; --text:#fafafa; --accent:#4f46e5;
+    }
+    *{box-sizing:border-box}
+    body{margin:0;font-family:system-ui,-apple-system,Segoe UI,Roboto,Ubuntu,"Helvetica Neue",Arial,sans-serif;background:var(--bg);color:var(--text);}
+    header{position:sticky;top:0;backdrop-filter:saturate(1.2) blur(6px);background:color-mix(in srgb,var(--bg) 70%, transparent);border-bottom:1px solid #1f1f2a}
+    header .wrap{max-width:980px;margin:auto;padding:12px 16px;display:flex;gap:12px;align-items:center}
+    .logo{font-weight:800;letter-spacing:.3px}
+    .chip{font-size:12px;padding:4px 8px;border:1px solid #2a2a3a;border-radius:999px;color:var(--muted)}
+    main{max-width:980px;margin:24px auto;padding:0 16px;display:grid;gap:16px}
+    .card{background:var(--card);border:1px solid #1d1d29;border-radius:16px;box-shadow:0 8px 24px rgba(0,0,0,.35);}
+    .viewer{display:grid;gap:0;overflow:hidden}
+    .viewer header{position:relative;inset:auto;background:transparent;border:0}
+    .viewer .meta{display:flex;flex-wrap:wrap;gap:8px;align-items:center;padding:12px 16px;color:var(--muted)}
+    .viewer .media{display:grid;place-items:center;background:#0a0a12}
+    .viewer .media picture, .viewer .media img, .viewer .media video{max-width:100%;height:auto;display:block}
+    .tools{display:flex;flex-wrap:wrap;gap:10px;padding:14px 16px;border-top:1px solid #1f1f2a}
+    button, a.button{appearance:none;border:1px solid #2a2a3a;background:#161622;color:var(--text);padding:10px 14px;border-radius:12px;cursor:pointer;font-weight:600;text-decoration:none}
+    button:hover, a.button:hover{border-color:#3a3a5a}
+    .row{display:flex;flex-wrap:wrap;gap:8px;align-items:center}
+    .kvs{display:grid;grid-template-columns:max-content 1fr;gap:6px 12px;padding:12px 16px;color:var(--muted)}
+    .kvs .k{color:#d4d4d8}
+    .tags{display:flex;flex-wrap:wrap;gap:8px;padding:8px 16px 16px}
+    .tag{font-size:12px;color:var(--muted);background:#171726;border:1px solid #2a2a3a;padding:6px 10px;border-radius:999px}
+    footer{max-width:980px;margin:12px auto 40px;padding:0 16px;color:var(--muted);font-size:12px}
+    .warn{background:#1a1320;border-left:2px solid #7c3aed;color:#e9d5ff;padding:10px 12px;border-radius:8px}
+    .hidden{display:none}
+  </style>
+</head>
+<body>
+  <header>
+    <div class="wrap">
+      <div class="logo">GIF Viewer</div>
+      <div class="chip">Demo • Not affiliated with Tenor</div>
+    </div>
+  </header>  <main>
+    <section class="card viewer">
+      <div class="meta" id="meta">
+        <span id="title">Manja GIF</span>
+        <span class="chip" id="dims">—</span>
+        <span class="chip" id="duration">—</span>
+      </div>
+      <div class="media" id="media">
+        <div class="warn">Loading GIF… If you see nothing, check your API key below or use the fallback image.</div>
+      </div>
+      <div class="tools">
+        <div class="row">
+          <a class="button" id="shareLink" target="_blank" rel="noopener">Open on Tenor</a>
+          <a class="button" id="dlGif" download>Download GIF</a>
+          <a class="button" id="dlMp4" download>Download MP4</a>
+        </div>
+        <div style="margin-left:auto" class="row">
+          <label for="gifId" class="chip">GIF ID</label>
+          <input id="gifId" value="22885016" style="width:110px;background:#0e0e17;border:1px solid #2a2a3a;border-radius:8px;color:#fafafa;padding:8px 10px"/>
+          <label for="apiKey" class="chip">API Key</label>
+          <input id="apiKey" placeholder="YOUR_TENOR_API_KEY" style="min-width:220px;background:#0e0e17;border:1px solid #2a2a3a;border-radius:8px;color:#fafafa;padding:8px 10px"/>
+          <button id="loadBtn">Load</button>
+        </div>
+      </div>
+      <div class="kvs" id="kvs"></div>
+      <div class="tags" id="tags"></div>
+    </section><section class="card" style="padding:16px">
+  <h3 style="margin:0 0 8px">Fallback (no API)</h3>
+  <p class="muted" style="color:var(--muted)">If you don’t have an API key yet, you can still show the GIF page using Tenor’s share URL in an <code>&lt;img&gt;</code> tag by right–clicking the GIF on Tenor, copying the image address, and pasting it here:</p>
+  <div class="row" style="gap:12px; margin-top:8px">
+    <input id="fallbackUrl" placeholder="https://media.tenor.com/.../gif" style="flex:1;background:#0e0e17;border:1px solid #2a2a3a;border-radius:8px;color:#fafafa;padding:8px 10px"/>
+    <button id="useFallback">Use URL</button>
+  </div>
+  <div id="fallbackHolder" class="hidden" style="margin-top:12px;display:grid;place-items:center;background:#0a0a12;padding:10px;border-radius:12px;border:1px solid #1f1f2a">
+    <img id="fallbackImg" alt="Fallback GIF" />
+  </div>
+</section>
+
+  </main>  <footer>
+    <p>Built for learning. Use Tenor’s official API and terms when deploying. GIF © respective owner on Tenor.</p>
+  </footer>  <script>
+    const byId = (id)=>document.getElementById(id);
+    const apiBase = 'https://tenor.googleapis.com/v2/posts';
+
+    async function loadById(gifId, apiKey){
+      const ckey = 'demo_gif_viewer';
+      const url = `${apiBase}?key=${encodeURIComponent(apiKey)}&client_key=${ckey}&ids=${encodeURIComponent(gifId)}`;
+      const res = await fetch(url);
+      if(!res.ok){ throw new Error('API error: '+res.status); }
+      const data = await res.json();
+      if(!data.results || !data.results.length) throw new Error('No result for this ID');
+      const item = data.results[0];
+
+      // Title & meta
+      byId('title').textContent = item.content_description || 'GIF';
+      const dims = item.media_formats?.gif || item.media_formats?.tinygif || item.media_formats?.mp4 || item.media_formats?.tinymp4;
+      byId('dims').textContent = dims ? `${dims.dims?.[0]||'—'}×${dims.dims?.[1]||'—'}` : '—';
+      byId('duration').textContent = item.duration ? `${item.duration.toFixed(2)}s` : '—';
+
+      // Media: prefer MP4 for performance, fallback to GIF
+      const mp4 = item.media_formats?.mp4?.url || item.media_formats?.tinymp4?.url;
+      const gif = item.media_formats?.gif?.url || item.media_formats?.tinygif?.url;
+      const mediaEl = byId('media');
+      mediaEl.innerHTML = '';
+      if(mp4){
+        const v = document.createElement('video');
+        v.src = mp4; v.autoplay = true; v.loop = true; v.muted = true; v.playsInline = true; v.controls = true;
+        v.style.maxHeight = '70vh';
+        mediaEl.appendChild(v);
+      } else if(gif){
+        const img = document.createElement('img');
+        img.src = gif; img.alt = item.content_description || 'GIF';
+        mediaEl.appendChild(img);
+      } else {
+        mediaEl.innerHTML = '<div class="warn">No media formats available.</div>';
+      }
+
+      // Tools
+      const shareUrl = item.url || `https://tenor.com/view/${gifId}`;
+      byId('shareLink').href = shareUrl;
+      if(gif){ byId('dlGif').href = gif; byId('dlGif').classList.remove('hidden'); } else { byId('dlGif').classList.add('hidden'); }
+      if(mp4){ byId('dlMp4').href = mp4; byId('dlMp4').classList.remove('hidden'); } else { byId('dlMp4').classList.add('hidden'); }
+
+      // Key/values
+      const kvs = byId('kvs');
+      const kv = (k,v)=>`<div class="k">${k}</div><div>${v??'—'}</div>`;
+      kvs.innerHTML = [
+        kv('ID', item.id),
+        kv('Created', item.created || '—'),
+        kv('Has audio', item.hasaudio ? 'Yes' : 'No'),
+        kv('Item URL', `<a href="${shareUrl}" target="_blank" rel="noopener">${shareUrl}</a>`),
+      ].join('');
+
+      // Tags
+      const tagsWrap = byId('tags');
+      tagsWrap.innerHTML = '';
+      (item.tags || []).slice(0,12).forEach(t=>{
+        const s = document.createElement('span');
+        s.className = 'tag'; s.textContent = '#'+t; tagsWrap.appendChild(s);
+      });
+    }
+
+    byId('loadBtn').addEventListener('click', ()=>{
+      const id = byId('gifId').value.trim();
+      const key = byId('apiKey').value.trim();
+      if(!id || !key){ alert('Enter both GIF ID and API Key'); return; }
+      loadById(id, key).catch(err=>{
+        byId('media').innerHTML = `<div class="warn">${err.message}</div>`;
+      });
+    });
+
+    byId('useFallback').addEventListener('click', ()=>{
+      const url = byId('fallbackUrl').value.trim();
+      if(!url){ alert('Paste a direct GIF URL'); return; }
+      byId('fallbackHolder').classList.remove('hidden');
+      byId('fallbackImg').src = url;
+    });
+
+    // Optional: prefill Tenor share link for the known ID without API
+    byId('shareLink').href = 'https://tenor.com/view/manja-gif-22885016';
+  </script></body>
+</html>
